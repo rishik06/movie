@@ -10,10 +10,11 @@ const foodItems = [
 ];
 
 export const OrderSummaryScreen = ({ route, navigation }) => {
-  const { movie, theatre, time, seats, cart, seatTotal, foodTotal } = route.params || {
+  const { movie, theatre, time, dateTime, seats, cart, seatTotal, foodTotal } = route.params || {
     movie: { title: 'The Dark Universe', language: 'English', genre: 'Action/Thriller', duration: '2h 30m' },
     theatre: { name: 'PVR Cinemas - Phoenix Mall' },
     time: 'Dec 9, 1:45 PM',
+    dateTime: null,
     seats: ['D1', 'D2', 'D3', 'D4'],
     seatTotal: 1200,
     foodTotal: 200,
@@ -161,7 +162,7 @@ export const OrderSummaryScreen = ({ route, navigation }) => {
       <View style={styles.footer}>
         <Button
           title="Proceed to Pay"
-          onPress={() => navigation.navigate('Payment', { amount: finalAmount, movie, theatre, time, seats, cart, seatTotal, foodTotal, discount })}
+          onPress={() => navigation.navigate('Payment', { amount: finalAmount, movie, theatre, time, dateTime, seats, cart, seatTotal, foodTotal, discount })}
           style={styles.payButton}
         />
       </View>

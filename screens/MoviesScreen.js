@@ -1,22 +1,35 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, FlatList, ActivityIndicator } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '../constants/theme';
 import { BottomNav } from '../components/BottomNav';
-
-const mockMovies = [
-  { id: 1, title: 'The Dark Universe', language: 'English', genre: 'Action/Thriller', rating: '8.5', poster: 'https://via.placeholder.com/160x240' },
-  { id: 2, title: 'Mission Strike', language: 'Hindi', genre: 'Action/Drama', rating: '7.8', poster: 'https://via.placeholder.com/160x240' },
-  { id: 3, title: 'The Great Adventure', language: 'English', genre: 'Adventure', rating: '8.2', poster: 'https://via.placeholder.com/160x240' },
-  { id: 4, title: 'Night Cinema', language: 'Hindi', genre: 'Thriller', rating: '9.0', poster: 'https://via.placeholder.com/160x240' },
-  { id: 5, title: 'City Lights', language: 'English', genre: 'Drama', rating: '8.7', poster: 'https://via.placeholder.com/160x240' },
-  { id: 6, title: 'Action Hero', language: 'Hindi', genre: 'Action', rating: '7.5', poster: 'https://via.placeholder.com/160x240' },
-];
+import { apiService } from '../services/api';
 
 const categories = ['All', 'Now Showing', 'Coming Soon'];
 
 export const MoviesScreen = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState('grid');
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadMovies();
+  }, []);
+
+  const loadMovies = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getMovies();
+      setMovies(response.data || []);
+    } catch (err) {
+      console.error('Failed to load movies:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const renderMovieCard = ({ item }) => (
     <TouchableOpacity
@@ -71,18 +84,31 @@ export const MoviesScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.countContainer}>
-        <Text style={styles.countText}>{mockMovies.length} movies found</Text>
+        <Text style={styles.countText}>{loading ? 'Loading...' : `${movies.length} movies found`}</Text>
       </View>
 
-      <FlatList
-        data={mockMovies}
-        renderItem={renderMovieCard}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        contentContainerStyle={styles.movieGrid}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Failed to load movies: {error}</Text>
+          <TouchableOpacity onPress={loadMovies} style={styles.retryButton}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={movies}
+          renderItem={renderMovieCard}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          contentContainerStyle={styles.movieGrid}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       <BottomNav currentRoute="movies" onNavigate={(route) => {
         if (route === 'movies') return;
@@ -197,6 +223,32 @@ const styles = StyleSheet.create({
   movieGenre: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+  },
+  retryText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
   },
 });
 

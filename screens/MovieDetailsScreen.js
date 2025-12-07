@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, ActivityIndicator } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 import { Button } from '../components/Button';
+import { apiService } from '../services/api';
 
 const dates = [
   { id: 1, day: 'Dec 8', weekday: 'Mon' },
@@ -10,38 +11,86 @@ const dates = [
   { id: 4, day: 'Dec 11', weekday: 'Thu' },
 ];
 
-const theatres = [
-  {
-    id: 1,
-    name: 'PVR Cinemas - Phoenix Mall',
-    location: 'Lower Parel, Mumbai',
-    distance: '2.5 km',
-    amenities: ['4K', 'Dolby Atmos', 'Recliner', 'Parking'],
-    showtimes: ['10:30 AM', '1:45 PM', '5:00 PM', '8:30 PM'],
-  },
-  {
-    id: 2,
-    name: 'INOX Megaplex',
-    location: 'Inorbit Mall, Malad',
-    distance: '5.2 km',
-    amenities: ['IMAX', '4DX', 'Premium', 'Food Court'],
-    showtimes: ['11:00 AM', '2:15 PM', '5:30 PM', '9:00 PM'],
-  },
-  {
-    id: 3,
-    name: 'Cinepolis - Andheri',
-    location: 'Andheri West, Mumbai',
-    distance: '3.8 km',
-    amenities: ['4K', 'VIP Lounge', 'Wheelchair Access'],
-    showtimes: ['10:00 AM', '1:30 PM', '4:45 PM', '8:15 PM'],
-  },
-];
-
 export const MovieDetailsScreen = ({ route, navigation }) => {
   const { movie } = route.params || {
     movie: { id: 1, title: 'The Dark Universe', language: 'English', genre: 'Action/Thriller', rating: '8.5', duration: '2h 30m' },
   };
   const [selectedDate, setSelectedDate] = useState(dates[1].id);
+  const [theatres, setTheatres] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (movie && movie.id) {
+      loadShowtimes();
+    }
+  }, [movie]);
+
+  const loadShowtimes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getMovieShowtimes(movie.id);
+      setTheatres(response.data || []);
+    } catch (err) {
+      console.error('Failed to load showtimes:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to convert 12-hour time to 24-hour format
+  const convertTo24Hour = (time12h) => {
+    if (!time12h) return '00:00';
+    const parts = time12h.split(' ');
+    if (parts.length < 2) return time12h; // Already in 24-hour format
+    
+    const [time, modifier] = parts;
+    let [hours, minutes] = time.split(':');
+    hours = parseInt(hours, 10);
+    
+    if (modifier === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (modifier === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes || '00'}`;
+  };
+
+  // Helper function to construct datetime string in format YYYY-MM-DD HH:MM
+  const constructDateTime = (dateStr, time24) => {
+    const today = new Date();
+    let targetDate = new Date(today);
+    
+    // Parse date string like "Dec 9" or "9 Dec"
+    if (dateStr) {
+      const dateMatch = dateStr.match(/(\w+)\s+(\d+)/);
+      if (dateMatch) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthName = dateMatch[1];
+        const day = parseInt(dateMatch[2], 10);
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
+        
+        if (monthIndex !== -1) {
+          targetDate = new Date(today.getFullYear(), monthIndex, day);
+          // If the date is in the past, assume next year
+          if (targetDate < today) {
+            targetDate = new Date(today.getFullYear() + 1, monthIndex, day);
+          }
+        }
+      }
+    }
+    
+    const [hours, minutes] = time24.split(':');
+    targetDate.setHours(parseInt(hours, 10), parseInt(minutes || 0, 10), 0, 0);
+    
+    const year = targetDate.getFullYear();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes || '00'}`;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -124,37 +173,81 @@ export const MovieDetailsScreen = ({ route, navigation }) => {
           </TouchableOpacity>
 
           <View style={styles.theatresSection}>
-            {theatres.map((theatre) => (
-              <View key={theatre.id} style={styles.theatreCard}>
-                <Text style={styles.theatreName}>{theatre.name}</Text>
-                <View style={styles.theatreLocation}>
-                  <Text style={styles.locationIcon}>📍</Text>
-                  <Text style={styles.locationText}>{theatre.location}</Text>
-                  <Text style={styles.distanceText}>{theatre.distance}</Text>
-                  <TouchableOpacity style={styles.mapButton}>
-                    <Text style={styles.mapButtonText}>Map</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.amenitiesContainer}>
-                  {theatre.amenities.map((amenity, index) => (
-                    <View key={index} style={styles.amenityTag}>
-                      <Text style={styles.amenityText}>{amenity}</Text>
-                    </View>
-                  ))}
-                </View>
-                <View style={styles.showtimesContainer}>
-                  {theatre.showtimes.map((time, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.showtimeButton}
-                      onPress={() => navigation.navigate('SeatSelection', { movie, theatre, time })}
-                    >
-                      <Text style={styles.showtimeText}>{time}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
               </View>
-            ))}
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Failed to load showtimes: {error}</Text>
+                <TouchableOpacity onPress={loadShowtimes} style={styles.retryButton}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : theatres.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No showtimes available</Text>
+              </View>
+            ) : (
+              theatres.map((theatre) => {
+                const amenities = theatre.amenities ? theatre.amenities.split(',') : [];
+                return (
+                  <View key={theatre.id} style={styles.theatreCard}>
+                    <Text style={styles.theatreName}>{theatre.name}</Text>
+                    <View style={styles.theatreLocation}>
+                      <Text style={styles.locationIcon}>📍</Text>
+                      <Text style={styles.locationText}>{theatre.location}</Text>
+                      <TouchableOpacity style={styles.mapButton}>
+                        <Text style={styles.mapButtonText}>Map</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.amenitiesContainer}>
+                      {amenities.map((amenity, index) => (
+                        <View key={index} style={styles.amenityTag}>
+                          <Text style={styles.amenityText}>{amenity.trim()}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.showtimesContainer}>
+                      {theatre.show_times && theatre.show_times.map((showtime, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.showtimeButton,
+                            showtime.status === 'Fast Filling' && styles.showtimeButtonFastFilling
+                          ]}
+                          onPress={() => {
+                            // Construct full datetime from selected date and showtime
+                            const selectedDateObj = dates.find(d => d.id === selectedDate);
+                            const today = new Date();
+                            const dateStr = selectedDateObj ? 
+                              `${selectedDateObj.day.split(' ')[1]} ${selectedDateObj.day.split(' ')[0]} ${today.getFullYear()}` : 
+                              today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            
+                            // Convert time to 24-hour format and construct datetime string
+                            const time24 = convertTo24Hour(showtime.time);
+                            const dateTime = constructDateTime(dateStr, time24);
+                            
+                            navigation.navigate('SeatSelection', { 
+                              movie, 
+                              theatre, 
+                              time: showtime.time,
+                              dateTime: dateTime,
+                              price: showtime.price 
+                            });
+                          }}
+                        >
+                          <Text style={styles.showtimeText}>{showtime.time}</Text>
+                          {showtime.status === 'Fast Filling' && (
+                            <Text style={styles.fastFillingText}>Fast Filling</Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
         </View>
       </ScrollView>
@@ -310,11 +403,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
   },
-  distanceText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginLeft: spacing.xs,
-  },
   mapButton: {
     marginLeft: 'auto',
     paddingHorizontal: spacing.md,
@@ -367,6 +455,48 @@ const styles = StyleSheet.create({
   },
   bookButton: {
     width: '100%',
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+  },
+  retryText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  showtimeButtonFastFilling: {
+    borderColor: colors.warning,
+  },
+  fastFillingText: {
+    ...typography.caption,
+    color: colors.warning,
+    fontSize: 10,
   },
 });
 

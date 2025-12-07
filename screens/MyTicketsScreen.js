@@ -1,51 +1,52 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, ActivityIndicator } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 import { BottomNav } from '../components/BottomNav';
-
-const upcomingTickets = [
-  {
-    id: 1,
-    title: 'The Dark Universe',
-    language: 'English',
-    theatre: 'PVR Cinemas - Phoenix Mall',
-    date: 'Dec 9, 2024',
-    time: '8:30 PM',
-    seats: ['D5', 'D6'],
-    price: 800,
-    poster: 'https://via.placeholder.com/100x150',
-  },
-  {
-    id: 2,
-    title: 'Mission Strike',
-    language: 'Hindi',
-    theatre: 'INOX Megaplex',
-    date: 'Dec 12, 2024',
-    time: '5:30 PM',
-    seats: ['G3', 'G4', 'G5'],
-    price: 900,
-    poster: 'https://via.placeholder.com/100x150',
-  },
-];
-
-const pastTickets = [
-  {
-    id: 3,
-    title: 'Comedy Nights',
-    language: 'English',
-    theatre: 'Cinepolis - Andheri',
-    date: 'Dec 1, 2024',
-    time: '7:00 PM',
-    seats: ['E8', 'E9'],
-    price: 600,
-    poster: 'https://via.placeholder.com/100x150',
-  },
-];
+import { apiService } from '../services/api';
 
 export const MyTicketsScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const tickets = activeTab === 'upcoming' ? upcomingTickets : pastTickets;
+  useEffect(() => {
+    loadBookings();
+  }, []);
+
+  const loadBookings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getBookings(1);
+      setBookings(response.data || []);
+    } catch (err) {
+      console.error('Failed to load bookings:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tickets = bookings.filter(booking => {
+    if (activeTab === 'upcoming') {
+      return booking.status === 'Upcoming';
+    } else {
+      return booking.status === 'Past';
+    }
+  });
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString.replace(' ', 'T'));
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString.replace(' ', 'T'));
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,36 +81,53 @@ export const MyTicketsScreen = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {tickets.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Failed to load tickets: {error}</Text>
+            <TouchableOpacity onPress={loadBookings} style={styles.retryButton}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : tickets.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No tickets found</Text>
           </View>
         ) : (
-          tickets.map((ticket) => (
-            <View key={ticket.id} style={styles.ticketCard}>
-              <Image source={{ uri: ticket.poster }} style={styles.ticketPoster} />
-              <View style={styles.ticketContent}>
-                <Text style={styles.ticketTitle}>{ticket.title}</Text>
-                <Text style={styles.ticketDetail}>{ticket.language}</Text>
-                <Text style={styles.ticketDetail}>{ticket.theatre}</Text>
-                <Text style={styles.ticketDetail}>
-                  {ticket.date} • {ticket.time}
-                </Text>
-                <View style={styles.ticketFooter}>
-                  <View>
-                    <Text style={styles.ticketSeats}>Seats: {ticket.seats.join(', ')}</Text>
-                    <Text style={styles.ticketPrice}>₹{ticket.price}</Text>
+          tickets.map((ticket) => {
+            const seats = ticket.seats ? ticket.seats.split(',') : [];
+            return (
+              <View key={ticket.booking_id} style={styles.ticketCard}>
+                <Image 
+                  source={{ uri: ticket.poster_url || 'https://via.placeholder.com/100x150' }} 
+                  style={styles.ticketPoster} 
+                />
+                <View style={styles.ticketContent}>
+                  <Text style={styles.ticketTitle}>{ticket.movie_title}</Text>
+                  <Text style={styles.ticketDetail}>{ticket.language}</Text>
+                  <Text style={styles.ticketDetail}>{ticket.theatre_name}</Text>
+                  <Text style={styles.ticketDetail}>
+                    {formatDate(ticket.show_time)} • {formatTime(ticket.show_time)}
+                  </Text>
+                  <View style={styles.ticketFooter}>
+                    <View>
+                      <Text style={styles.ticketSeats}>Seats: {seats.join(', ')}</Text>
+                      <Text style={styles.ticketPrice}>₹{ticket.total_price}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.viewDetailsButton}
+                      onPress={() => navigation.navigate('TicketDetails', { ticket })}
+                    >
+                      <Text style={styles.viewDetailsText}>View Details {'>'}</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={styles.viewDetailsButton}
-                    onPress={() => navigation.navigate('TicketDetails', { ticket })}
-                  >
-                    <Text style={styles.viewDetailsText}>View Details {'>'}</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -228,6 +246,32 @@ const styles = StyleSheet.create({
   viewDetailsText: {
     ...typography.body,
     color: colors.primary,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+  },
+  retryText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
   },
 });
 

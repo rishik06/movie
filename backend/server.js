@@ -265,8 +265,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // Start Server
-app.listen(port, () => {
-    console.log(`Server is running and listening at http://localhost:${port}`);
+// Listen on all network interfaces (0.0.0.0) to allow mobile devices to connect
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is running and listening at http://0.0.0.0:${port}`);
+    console.log(`Local access: http://localhost:${port}`);
+    console.log(`Network access: http://<your-ip>:${port}`);
+    console.log(`\nTo find your IP address:`);
+    console.log(`  - Windows: ipconfig`);
+    console.log(`  - Mac/Linux: ifconfig or ip addr`);
 });
 
 // Graceful shutdown

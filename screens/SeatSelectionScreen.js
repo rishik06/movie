@@ -24,10 +24,11 @@ const generateSeats = () => {
 };
 
 export const SeatSelectionScreen = ({ route, navigation }) => {
-  const { movie, theatre, time } = route.params || {
+  const { movie, theatre, time, dateTime } = route.params || {
     movie: { title: 'The Dark Universe' },
     theatre: { name: 'PVR Cinemas - Phoenix Mall' },
     time: '1:45 PM',
+    dateTime: null,
   };
   const [seats, setSeats] = useState(generateSeats());
   const [selectedSeats, setSelectedSeats] = useState([]);
@@ -149,7 +150,7 @@ export const SeatSelectionScreen = ({ route, navigation }) => {
           </View>
           <Button
             title="Proceed"
-            onPress={() => navigation.navigate('FoodBeverages', { movie, theatre, time, seats: selectedSeats, total: calculateTotal() })}
+            onPress={() => navigation.navigate('FoodBeverages', { movie, theatre, time, dateTime, seats: selectedSeats, total: calculateTotal() })}
             style={styles.proceedButton}
           />
         </View>

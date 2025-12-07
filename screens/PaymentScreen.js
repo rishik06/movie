@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 import { Button } from '../components/Button';
+import { apiService } from '../services/api';
 
 const paymentMethods = [
   { id: 'upi', name: 'UPI', icon: '📱', options: ['Google Pay', 'PhonePe', 'Paytm', 'BHIM UPI'] },
@@ -11,10 +12,76 @@ const paymentMethods = [
 ];
 
 export const PaymentScreen = ({ route, navigation }) => {
-  const { amount } = route.params || { amount: 1580 };
+  const { amount, movie, theatre, time, dateTime, seats } = route.params || { amount: 1580 };
   const [selectedMethod, setSelectedMethod] = useState('upi');
   const [selectedUPI, setSelectedUPI] = useState('Google Pay');
   const [upiId, setUpiId] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  const handlePayment = async () => {
+    if (!movie || !theatre || !seats) {
+      Alert.alert('Error', 'Missing booking information');
+      return;
+    }
+
+    // Use dateTime if available, otherwise construct from time
+    let showTime = dateTime;
+    if (!showTime && time) {
+      // Fallback: construct datetime from current date and time
+      const today = new Date();
+      const [timePart, modifier] = time.split(' ');
+      let [hours, minutes] = timePart.split(':');
+      if (modifier === 'PM' && hours !== '12') {
+        hours = String(parseInt(hours, 10) + 12);
+      } else if (modifier === 'AM' && hours === '12') {
+        hours = '00';
+      }
+      hours = hours.padStart(2, '0');
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      showTime = `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+
+    if (!showTime) {
+      Alert.alert('Error', 'Missing show time information');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      
+      const bookingData = {
+        movie_id: movie.id,
+        theatre_id: theatre.id,
+        show_time: showTime,
+        seats: Array.isArray(seats) ? seats : seats.split(','),
+        total_price: amount,
+      };
+
+      const response = await apiService.createBooking(bookingData);
+      
+      Alert.alert(
+        'Booking Successful!',
+        `Your booking ID is: ${response.booking_id}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('BookingSuccess', { 
+              bookingId: response.booking_id,
+              amount,
+              booking: response.details
+            }),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Booking failed:', error);
+      Alert.alert('Booking Failed', error.message || 'Unable to complete booking. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -85,10 +152,16 @@ export const PaymentScreen = ({ route, navigation }) => {
           <Text style={styles.amountValue}>₹{amount}</Text>
         </View>
         <Button
-          title={`Pay ₹${amount}`}
-          onPress={() => navigation.navigate('BookingSuccess', { amount })}
+          title={processing ? 'Processing...' : `Pay ₹${amount}`}
+          onPress={handlePayment}
           style={styles.payButton}
+          disabled={processing}
         />
+        {processing && (
+          <View style={styles.processingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -232,6 +305,10 @@ const styles = StyleSheet.create({
   },
   payButton: {
     width: '100%',
+  },
+  processingContainer: {
+    marginTop: spacing.sm,
+    alignItems: 'center',
   },
 });
 

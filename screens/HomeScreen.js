@@ -1,18 +1,33 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, ActivityIndicator } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '../constants/theme';
 import { MovieCard } from '../components/MovieCard';
 import { BottomNav } from '../components/BottomNav';
-
-const mockMovies = [
-  { id: 1, title: 'The Dark Universe', language: 'English', genre: 'Action/Thriller', rating: '8.5', poster: 'https://via.placeholder.com/160x240' },
-  { id: 2, title: 'Mission Strike', language: 'Hindi', genre: 'Action/Drama', rating: '7.8', poster: 'https://via.placeholder.com/160x240' },
-  { id: 3, title: 'The Great Adventure', language: 'English', genre: 'Adventure', rating: '8.2', poster: 'https://via.placeholder.com/160x240' },
-  { id: 4, title: 'Night Cinema', language: 'Hindi', genre: 'Thriller', rating: '9.0', poster: 'https://via.placeholder.com/160x240' },
-];
+import { apiService } from '../services/api';
 
 export const HomeScreen = ({ navigation }) => {
   const [location, setLocation] = useState('Mumbai');
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadMovies();
+  }, []);
+
+  const loadMovies = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getMovies();
+      setMovies(response.data || []);
+    } catch (err) {
+      console.error('Failed to load movies:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -51,15 +66,28 @@ export const HomeScreen = ({ navigation }) => {
               <Text style={styles.seeAllText}>See All {'>'}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.movieList}>
-            {mockMovies.map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                onPress={() => navigation.navigate('MovieDetails', { movie })}
-              />
-            ))}
-          </ScrollView>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Failed to load movies: {error}</Text>
+              <TouchableOpacity onPress={loadMovies} style={styles.retryButton}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.movieList}>
+              {movies.map((movie) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onPress={() => navigation.navigate('MovieDetails', { movie })}
+                />
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -69,15 +97,21 @@ export const HomeScreen = ({ navigation }) => {
               <Text style={styles.seeAllText}>See All {'>'}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.movieList}>
-            {mockMovies.slice(0, 3).map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                onPress={() => navigation.navigate('MovieDetails', { movie })}
-              />
-            ))}
-          </ScrollView>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.movieList}>
+              {movies.slice(0, 3).map((movie) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onPress={() => navigation.navigate('MovieDetails', { movie })}
+                />
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -87,15 +121,21 @@ export const HomeScreen = ({ navigation }) => {
               <Text style={styles.seeAllText}>See All {'>'}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.movieList}>
-            {mockMovies.slice(1, 4).map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                onPress={() => navigation.navigate('MovieDetails', { movie })}
-              />
-            ))}
-          </ScrollView>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.movieList}>
+              {movies.slice(1, 4).map((movie) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onPress={() => navigation.navigate('MovieDetails', { movie })}
+                />
+              ))}
+            </ScrollView>
+          )}
         </View>
       </ScrollView>
       <BottomNav currentRoute="home" onNavigate={(route) => {
@@ -183,6 +223,32 @@ const styles = StyleSheet.create({
   },
   movieList: {
     paddingLeft: spacing.md,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+  },
+  retryText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: '600',
   },
 });
 

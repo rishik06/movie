@@ -12,7 +12,7 @@ const foodItems = [
 ];
 
 export const FoodBeveragesScreen = ({ route, navigation }) => {
-  const { movie, theatre, time, seats, total: seatTotal } = route.params || {};
+  const { movie, theatre, time, dateTime, seats, total: seatTotal } = route.params || {};
   const [cart, setCart] = useState({});
 
   const addToCart = (item) => {
@@ -52,7 +52,7 @@ export const FoodBeveragesScreen = ({ route, navigation }) => {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Food & Beverages</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('OrderSummary', { movie, theatre, time, seats, cart, seatTotal, foodTotal: getCartTotal() })}>
+        <TouchableOpacity onPress={() => navigation.navigate('OrderSummary', { movie, theatre, time, dateTime, seats, cart, seatTotal, foodTotal: getCartTotal() })}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       </View>
@@ -109,7 +109,7 @@ export const FoodBeveragesScreen = ({ route, navigation }) => {
         </View>
         <Button
           title="Proceed"
-          onPress={() => navigation.navigate('OrderSummary', { movie, theatre, time, seats, cart, seatTotal, foodTotal: getCartTotal() })}
+          onPress={() => navigation.navigate('OrderSummary', { movie, theatre, time, dateTime, seats, cart, seatTotal, foodTotal: getCartTotal() })}
           style={styles.proceedButton}
         />
       </View>
